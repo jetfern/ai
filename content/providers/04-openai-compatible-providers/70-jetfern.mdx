@@ -1,0 +1,148 @@
+---
+title: JetFern
+description: Use the JetFern OpenAI compatible API with the AI SDK.
+---
+
+# JetFern Provider
+
+[JetFern](https://www.jetfern.ai) serves open-weight models through an OpenAI-compatible API. You can use its Chat Completions endpoint with the AI SDK through the `@ai-sdk/openai-compatible` module.
+
+## Setup
+
+Install the OpenAI Compatible provider:
+
+<InstallPackages packages="@ai-sdk/openai-compatible" />
+
+Get a JetFern API key from [jetfern.ai](https://www.jetfern.ai) and set it as a server-side environment variable:
+
+```bash
+export JETFERN_API_KEY=your-api-key
+```
+
+## Provider Instance
+
+Create a JetFern provider instance with `createOpenAICompatible`:
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const jetfern = createOpenAICompatible({
+  name: 'jetfern',
+  baseURL: 'https://inference.jetfern.ai/v1',
+  apiKey: process.env.JETFERN_API_KEY,
+});
+```
+
+The `apiKey` setting sends your key as a Bearer token in the `Authorization` header.
+
+## Language Models
+
+Create a language model by passing a JetFern model ID to the provider instance:
+
+```ts
+const model = jetfern('deepseek-v4.1-flash');
+```
+
+### Generate Text
+
+Use `generateText` to generate text with the model:
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { generateText } from 'ai';
+
+const jetfern = createOpenAICompatible({
+  name: 'jetfern',
+  baseURL: 'https://inference.jetfern.ai/v1',
+  apiKey: process.env.JETFERN_API_KEY,
+});
+
+const { text } = await generateText({
+  model: jetfern('deepseek-v4.1-flash'),
+  prompt: 'Write a vegetarian lasagna recipe for 4 people.',
+});
+
+console.log(text);
+```
+
+### Stream Text
+
+Use `streamText` to stream text as it is generated:
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { streamText } from 'ai';
+
+const jetfern = createOpenAICompatible({
+  name: 'jetfern',
+  baseURL: 'https://inference.jetfern.ai/v1',
+  apiKey: process.env.JETFERN_API_KEY,
+});
+
+const result = streamText({
+  model: jetfern('deepseek-v4.1-flash'),
+  prompt: 'Write a short haiku about ferns.',
+});
+
+for await (const textPart of result.textStream) {
+  process.stdout.write(textPart);
+}
+```
+
+### Tool Calling
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { generateText, tool } from 'ai';
+import { z } from 'zod';
+
+const jetfern = createOpenAICompatible({
+  name: 'jetfern',
+  baseURL: 'https://inference.jetfern.ai/v1',
+  apiKey: process.env.JETFERN_API_KEY,
+});
+
+const { text, toolCalls } = await generateText({
+  model: jetfern('deepseek-v4.1-flash'),
+  prompt: 'What is the weather like in San Francisco?',
+  tools: {
+    getWeather: tool({
+      description: 'Get weather information for a city',
+      inputSchema: z.object({
+        city: z.string().describe('The city name'),
+      }),
+      execute: async ({ city }) => {
+        return `The weather in ${city} is sunny.`;
+      },
+    }),
+  },
+});
+```
+
+## Model Capabilities
+
+| Model                 | Context Window | Image Input         | Object Generation   | Tool Usage          | Reasoning           |
+| --------------------- | -------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| `deepseek-v4.1-flash` | 262,144 tokens | <Cross size={18} /> | <Cross size={18} /> | <Check size={18} /> | <Check size={18} /> |
+
+Reasoning is off unless you ask for it. Pass `reasoningEffort` (`'low'`, `'medium'`, `'high'` or `'max'`) through provider options to turn it on:
+
+```ts
+const { text, reasoningText } = await generateText({
+  model: jetfern('deepseek-v4.1-flash'),
+  prompt: 'Is 391 prime?',
+  providerOptions: { jetfern: { reasoningEffort: 'high' } },
+});
+```
+
+The full list of models and prices is on the [JetFern models page](https://www.jetfern.ai/models/).
+
+<Note>
+  The context window is the limit JetFern serves for each model. The prompt and
+  the generated output together must fit within it.
+</Note>
+
+## Resources
+
+- [JetFern models and pricing](https://www.jetfern.ai/models/)
+- [AI SDK OpenAI Compatible provider](/providers/openai-compatible-providers)
